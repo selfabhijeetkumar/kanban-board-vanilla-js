@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kanban Board</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Google Fonts: Inter for clean UI typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+</head>
+<body>
+
+  <!-- ============================================================
+       AUTH SCREEN
+       Shown when the user is not logged in.
+       Firebase Auth is used for email/password sign-up & login.
+       Falls back to a "guest mode" that uses only localStorage.
+  ============================================================ -->
+  <div id="auth-screen" class="auth-screen" role="main" aria-label="Authentication">
+
+    <div class="auth-card" role="region">
+      <!-- App logo / branding -->
+      <div class="auth-logo" aria-hidden="true">
+        <span class="logo-icon">&#9646;&#9646;&#9646;</span>
+      </div>
+      <h1 class="auth-title">KanbanFlow</h1>
+      <p class="auth-subtitle">Organize your work, beautifully.</p>
+
+      <!-- Tab switcher: Login / Sign Up -->
+      <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+        <button
+          class="auth-tab active"
+          id="tab-login"
+          role="tab"
+          aria-selected="true"
+          aria-controls="panel-login"
+          data-tab="login"
+        >Login</button>
+        <button
+          class="auth-tab"
+          id="tab-signup"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-signup"
+          data-tab="signup"
+        >Sign Up</button>
+      </div>
+
+      <!-- Login Panel -->
+      <div id="panel-login" class="auth-panel" role="tabpanel" aria-labelledby="tab-login">
+        <form id="login-form" novalidate>
+          <div class="form-group">
+            <label for="login-email">Email</label>
+            <input
+              type="email"
+              id="login-email"
+              name="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+              aria-required="true"
+            />
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input
+              type="password"
+              id="login-password"
+              name="password"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              required
+              aria-required="true"
+            />
+          </div>
+          <p class="auth-error" id="login-error" role="alert" aria-live="polite"></p>
+          <button type="submit" class="btn btn-primary btn-full" id="login-btn">
+            Login
+          </button>
+        </form>
+      </div>
+
+      <!-- Sign Up Panel (hidden by default) -->
+      <div id="panel-signup" class="auth-panel hidden" role="tabpanel" aria-labelledby="tab-signup">
+        <form id="signup-form" novalidate>
+          <div class="form-group">
+            <label for="signup-name">Display Name</label>
+            <input
+              type="text"
+              id="signup-name"
+              name="name"
+              placeholder="Your name"
+              autocomplete="name"
+              required
+              aria-required="true"
+            />
+          </div>
+          <div class="form-group">
+            <label for="signup-email">Email</label>
+            <input
+              type="email"
+              id="signup-email"
+              name="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+              aria-required="true"
+            />
+          </div>
+          <div class="form-group">
+            <label for="signup-password">Password</label>
+            <input
+              type="password"
+              id="signup-password"
+              name="password"
+              placeholder="Min. 6 characters"
+              autocomplete="new-password"
+              required
+              aria-required="true"
+              minlength="6"
+            />
+          </div>
+          <p class="auth-error" id="signup-error" role="alert" aria-live="polite"></p>
+          <button type="submit" class="btn btn-primary btn-full" id="signup-btn">
+            Create Account
+          </button>
+        </form>
+      </div>
+
+      <!-- Guest mode link -->
+      <div class="auth-divider" aria-hidden="true"><span>or</span></div>
+      <button class="btn btn-ghost btn-full" id="guest-btn">
+        Continue as Guest (local only)
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MAIN APP
+       Hidden until the user authenticates (or enters guest mode).
+  ============================================================ -->
+  <div id="app" class="app hidden" aria-label="Kanban Board Application">
+
+    <!-- ── Header ────────────────────────────────────────────── -->
+    <header class="app-header" role="banner">
+      <div class="header-left">
+        <span class="logo-icon" aria-hidden="true">&#9646;&#9646;&#9646;</span>
+        <span class="app-name">KanbanFlow</span>
+      </div>
+
+      <!-- Search bar -->
+      <div class="search-wrapper" role="search">
+        <label for="search-input" class="visually-hidden">Search tasks</label>
+        <span class="search-icon" aria-hidden="true">&#128269;</span>
+        <input
+          type="search"
+          id="search-input"
+          placeholder="Search tasks…"
+          aria-label="Search tasks"
+          autocomplete="off"
+        />
+      </div>
+
+      <div class="header-right">
+        <!-- User display name -->
+        <span id="user-display" class="user-display" aria-live="polite"></span>
+        <!-- Logout -->
+        <button class="btn btn-ghost btn-sm" id="logout-btn" aria-label="Logout">
+          Logout
+        </button>
+      </div>
+    </header>
+
+    <!-- ── Board ─────────────────────────────────────────────── -->
+    <main class="board" role="main" id="board" aria-label="Kanban board columns">
+
+      <!-- TO DO Column -->
+      <section
+        class="column"
+        id="col-todo"
+        data-status="todo"
+        aria-label="To Do column"
+        aria-dropeffect="move"
+      >
+        <div class="column-header">
+          <h2 class="column-title">
+            <span class="column-dot dot-todo" aria-hidden="true"></span>
+            To Do
+          </h2>
+          <span class="task-count" id="count-todo" aria-label="To Do task count">0</span>
+        </div>
+        <!-- Task list -->
+        <ul class="task-list" id="list-todo" role="list" aria-label="To Do tasks"></ul>
+        <!-- Add task button -->
+        <button
+          class="btn btn-add-task"
+          data-status="todo"
+          aria-label="Add task to To Do"
+        >
+          <span aria-hidden="true">+</span> Add Task
+        </button>
+      </section>
+
+      <!-- IN PROGRESS Column -->
+      <section
+        class="column"
+        id="col-progress"
+        data-status="progress"
+        aria-label="In Progress column"
+        aria-dropeffect="move"
+      >
+        <div class="column-header">
+          <h2 class="column-title">
+            <span class="column-dot dot-progress" aria-hidden="true"></span>
+            In Progress
+          </h2>
+          <span class="task-count" id="count-progress" aria-label="In Progress task count">0</span>
+        </div>
+        <ul class="task-list" id="list-progress" role="list" aria-label="In Progress tasks"></ul>
+        <button
+          class="btn btn-add-task"
+          data-status="progress"
+          aria-label="Add task to In Progress"
+        >
+          <span aria-hidden="true">+</span> Add Task
+        </button>
+      </section>
+
+      <!-- DONE Column -->
+      <section
+        class="column"
+        id="col-done"
+        data-status="done"
+        aria-label="Done column"
+        aria-dropeffect="move"
+      >
+        <div class="column-header">
+          <h2 class="column-title">
+            <span class="column-dot dot-done" aria-hidden="true"></span>
+            Done
+          </h2>
+          <span class="task-count" id="count-done" aria-label="Done task count">0</span>
+        </div>
+        <ul class="task-list" id="list-done" role="list" aria-label="Done tasks"></ul>
+        <button
+          class="btn btn-add-task"
+          data-status="done"
+          aria-label="Add task to Done"
+        >
+          <span aria-hidden="true">+</span> Add Task
+        </button>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ============================================================
+       ADD / EDIT TASK MODAL
+       Used for both creating and editing tasks.
+  ============================================================ -->
+  <div
+    id="task-modal"
+    class="modal-overlay hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-title"
+    aria-describedby="modal-desc"
+  >
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="modal-title" class="modal-title">Add Task</h2>
+        <button
+          class="btn-icon modal-close"
+          id="modal-close-btn"
+          aria-label="Close modal"
+        >&#10005;</button>
+      </div>
+      <p id="modal-desc" class="visually-hidden">
+        Fill in the task details below. Title is required.
+      </p>
+
+      <form id="task-form" novalidate>
+        <!-- Hidden field: target status column -->
+        <input type="hidden" id="task-status" value="todo" />
+        <!-- Hidden field: task id (populated when editing) -->
+        <input type="hidden" id="task-id" value="" />
+
+        <div class="form-group">
+          <label for="task-title">Title <span class="required" aria-hidden="true">*</span></label>
+          <input
+            type="text"
+            id="task-title"
+            placeholder="What needs to be done?"
+            required
+            aria-required="true"
+            maxlength="120"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="task-description">Description <span class="optional">(optional)</span></label>
+          <textarea
+            id="task-description"
+            rows="3"
+            placeholder="Add more details…"
+            maxlength="500"
+          ></textarea>
+        </div>
+
+        <!-- Priority selector (optional enhancement) -->
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="task-priority">Priority</label>
+            <select id="task-priority" aria-label="Task priority">
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+
+          <!-- Category selector (optional enhancement) -->
+          <div class="form-group flex-1">
+            <label for="task-category">Category</label>
+            <select id="task-category" aria-label="Task category">
+              <option value="Work">Work</option>
+              <option value="Study">Study</option>
+              <option value="Personal">Personal</option>
+              <option value="Health">Health</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Due date (optional enhancement) -->
+        <div class="form-group">
+          <label for="task-due">Due Date <span class="optional">(optional)</span></label>
+          <input type="date" id="task-due" aria-label="Task due date" />
+        </div>
+
+        <p class="form-error" id="task-form-error" role="alert" aria-live="polite"></p>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="modal-cancel-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="task-submit-btn">Add Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       DELETE CONFIRMATION MODAL
+  ============================================================ -->
+  <div
+    id="delete-modal"
+    class="modal-overlay hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="delete-modal-title"
+  >
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h2 id="delete-modal-title" class="modal-title">Delete Task?</h2>
+        <button
+          class="btn-icon modal-close"
+          id="delete-modal-close"
+          aria-label="Close delete confirmation"
+        >&#10005;</button>
+      </div>
+      <p class="delete-warning">
+        This action cannot be undone.
+      </p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="delete-cancel-btn">Cancel</button>
+        <button class="btn btn-danger" id="delete-confirm-btn">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       TOAST NOTIFICATION
+       Non-intrusive feedback for user actions.
+  ============================================================ -->
+  <div
+    id="toast"
+    class="toast hidden"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+  ></div>
+
+  <!-- ============================================================
+       FIREBASE SDK  (v9 compat bundle — no build tools required)
+       Replace the config values with your own Firebase project
+       credentials. See README for setup instructions.
+
+       NOTE: If Firebase is NOT configured, the app automatically
+       falls back to guest/localStorage mode — all features still
+       work, but data is stored locally instead of the cloud.
+  ============================================================ -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <!-- Main application script -->
+  <script src="script.js"></script>
+</body>
+</html>
